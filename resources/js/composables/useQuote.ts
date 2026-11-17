@@ -1,4 +1,5 @@
 import { errorMessage, postJson, validationErrors } from '@/lib/http';
+import { filledReferenceImages, remapReferenceImageErrors } from '@/lib/referenceImages';
 import { watchDebounced } from '@vueuse/core';
 import { onMounted, ref, type Ref } from 'vue';
 
@@ -43,24 +44,6 @@ function isQuoteBody(data: unknown): data is QuoteBody {
 }
 
 /**
- * Blank reference-image rows are left out of the request, so the server's
- * error keys ("reference_images.0") count only the filled rows. This maps
- * them back to the row the user sees.
- */
-function remapReferenceImageErrors(errors: Record<string, string>, sentRows: number[]): Record<string, string> {
-    const remapped: Record<string, string> = {};
-
-    for (const [field, message] of Object.entries(errors)) {
-        const match = /^reference_images\.(\d+)$/.exec(field);
-        const row = match === null ? undefined : sentRows[Number(match[1])];
-
-        remapped[row === undefined ? field : `reference_images.${row}`] = message;
-    }
-
-    return remapped;
-}
-
-/**
  * Keeps a live price for the options the user is choosing.
  *
  * Requests are debounced while typing, and each new request cancels the
@@ -78,14 +61,10 @@ export function useQuote(url: string, input: () => QuoteInput): UseQuote {
         refreshing.value = true;
 
         const { prompt, size, quality, referenceImages } = input();
-        const rows = referenceImages.map((address, row) => ({ address: address.trim(), row })).filter(({ address }) => address !== '');
+        const { addresses, rows } = filledReferenceImages(referenceImages);
 
         try {
-            const { status, data } = await postJson(
-                url,
-                { prompt, size, quality, reference_images: rows.map(({ address }) => address) },
-                request.signal,
-            );
+            const { status, data } = await postJson(url, { prompt, size, quality, reference_images: addresses }, request.signal);
 
             if (request.signal.aborted) {
                 return;
@@ -94,11 +73,7 @@ export function useQuote(url: string, input: () => QuoteInput): UseQuote {
             if (status === 200 && isQuoteBody(data)) {
                 state.value = { status: 'ready', quote: { minCharge: data.min_charge, maxCharge: data.max_charge } };
             } else if (status === 422) {
-                const errors = remapReferenceImageErrors(
-                    validationErrors(data),
-                    rows.map(({ row }) => row),
-                );
-                state.value = { status: 'invalid', errors };
+                state.value = { status: 'invalid', errors: remapReferenceImageErrors(validationErrors(data), rows) };
             } else {
                 state.value = { status: 'unavailable', message: errorMessage(data, 'The price could not be worked out. Please try again.') };
             }

@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuote } from '@/composables/useQuote';
+import { useSubmitGeneration } from '@/composables/useSubmitGeneration';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatUsd, formatUsdRange } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { ImagePlus, LoaderCircle, Trash2 } from 'lucide-vue-next';
-import { computed, reactive } from 'vue';
+import { ImagePlus, LoaderCircle, Sparkles, Trash2 } from 'lucide-vue-next';
+import { computed, reactive, watch } from 'vue';
 
 interface Option {
     value: string;
@@ -43,7 +44,27 @@ const { state: quote, refreshing } = useQuote(route('generate.quote'), () => ({
     referenceImages: [...form.referenceImages],
 }));
 
-const errors = computed(() => (quote.value.status === 'invalid' ? quote.value.errors : {}));
+const { state: submission, submit, reset: resetSubmission } = useSubmitGeneration(route('generations.store'));
+
+// Errors from submitting win, since they are the newer answer.
+const errors = computed(() => {
+    if (submission.value.status === 'invalid') {
+        return submission.value.errors;
+    }
+
+    return quote.value.status === 'invalid' ? quote.value.errors : {};
+});
+
+// Changing the form clears the last "queued" or error message.
+watch(form, resetSubmission, { deep: true });
+
+const canSubmit = computed(() => form.prompt.trim() !== '' && quote.value.status === 'ready' && submission.value.status !== 'submitting');
+
+function onSubmit(): void {
+    if (canSubmit.value) {
+        void submit({ ...form, referenceImages: [...form.referenceImages] });
+    }
+}
 
 // Pixelforge counts Unicode characters, so count code points, not UTF-16 units.
 const promptLength = computed(() => Array.from(form.prompt).length);
@@ -65,7 +86,7 @@ const fieldClass =
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="grid gap-8 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:p-6">
-            <form class="flex flex-col gap-6" @submit.prevent>
+            <form class="flex flex-col gap-6" @submit.prevent="onSubmit">
                 <HeadingSmall title="Generate an image" description="Describe what you want, then pick a size and quality." />
 
                 <div class="grid gap-2">
@@ -162,6 +183,19 @@ const fieldClass =
                         <ImagePlus class="size-4" />
                         Add reference image
                     </Button>
+                </div>
+
+                <div class="grid gap-3 border-t border-sidebar-border/70 pt-6 dark:border-sidebar-border" aria-live="polite">
+                    <Button type="submit" class="w-fit" :disabled="!canSubmit">
+                        <LoaderCircle v-if="submission.status === 'submitting'" class="size-4 animate-spin" />
+                        <Sparkles v-else class="size-4" />
+                        Generate image
+                    </Button>
+
+                    <p v-if="submission.status === 'submitted'" class="text-sm text-green-700 dark:text-green-500">
+                        Your image is queued. You'll only be charged once it's ready.
+                    </p>
+                    <p v-else-if="submission.status === 'failed'" class="text-sm text-red-600 dark:text-red-500">{{ submission.message }}</p>
                 </div>
             </form>
 
