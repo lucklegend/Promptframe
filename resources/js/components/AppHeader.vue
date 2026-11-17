@@ -17,7 +17,7 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { getInitials } from '@/composables/useInitials';
 import type { BreadcrumbItem, NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { Folder, LayoutGrid, Menu, Search, Sparkles } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
@@ -42,6 +42,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Generate',
+        href: '/generate',
+        icon: Sparkles,
     },
 ];
 
@@ -71,7 +76,7 @@ const rightNavItems: NavItem[] = [
                             <SheetHeader class="flex justify-start text-left">
                                 <AppLogoIcon class="size-6 fill-current text-black dark:text-white" />
                             </SheetHeader>
-                            <div class="flex flex-col justify-between h-full space-y-4 py-6 flex-1">
+                            <div class="flex h-full flex-1 flex-col justify-between space-y-4 py-6">
                                 <nav class="-mx-3 space-y-1">
                                     <Link
                                         v-for="item in mainNavItems"

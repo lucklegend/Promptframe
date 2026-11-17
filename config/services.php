@@ -28,6 +28,15 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'pixelforge' => [
+        'base_url' => env('PIXELFORGE_BASE_URL', 'https://pixelforge.promptedit.dev/v1'),
+        'api_key' => env('PIXELFORGE_API_KEY'),
+        'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
+        // Prices rarely change, and every generation is billed at the rates
+        // returned when it is created, so a short cache is safe for quotes.
+        'pricing_cache_seconds' => (int) env('PIXELFORGE_PRICING_CACHE_SECONDS', 600),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
