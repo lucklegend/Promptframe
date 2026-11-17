@@ -44,6 +44,26 @@ final readonly class PixelforgeClient
         return $this->json($response->json());
     }
 
+    /**
+     * POST /v1/generations. Sending the same idempotency key again returns
+     * the generation already created instead of making a second one.
+     *
+     * Throws RequestException for any error status, so the caller decides
+     * which errors are worth retrying.
+     *
+     * @param  array{prompt: string, size: string, quality: string, reference_images: list<string>, metadata: array<string, string>}  $parameters
+     * @return array<string, mixed>
+     */
+    public function createGeneration(array $parameters, string $idempotencyKey): array
+    {
+        $response = $this->authenticated()
+            ->withHeaders(['Idempotency-Key' => $idempotencyKey])
+            ->post('generations', $parameters)
+            ->throw();
+
+        return $this->json($response->json());
+    }
+
     public function hasApiKey(): bool
     {
         return $this->apiKey !== '';

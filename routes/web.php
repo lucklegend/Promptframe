@@ -16,6 +16,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('generate', [GenerationController::class, 'create'])->name('generate');
     Route::post('generate/quote', QuoteController::class)->name('generate.quote');
+    Route::post('generations', [GenerationController::class, 'store'])->name('generations.store');
 });
 
 require __DIR__.'/settings.php';

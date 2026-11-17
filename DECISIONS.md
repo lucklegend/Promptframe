@@ -44,3 +44,33 @@ maximum is what to check against a user's balance.
 **Token rules come from `GET /v1/pricing`, not constants in the code.**
 `TokenTable` and `TokenRates` are built from that response, so a price
 change on Pixelforge's side needs no deploy.
+
+## Submitting generations
+
+**Save first, then call Pixelforge from a queued job.** The controller writes
+the `generations` row (status `submitting`, with the quoted range) and queues
+`SubmitGeneration`. Pixelforge can answer 429 (busy) or 503 (overloaded), and a
+job can wait out `Retry-After` without holding a page open. The row exists
+before Pixelforge does anything, so a webhook that arrives before the POST
+returns always has a record to update.
+
+**One Idempotency-Key per generation, created once and stored.** Every retry
+sends the same key, so Pixelforge creates and bills at most one image however
+many times the job runs. Our row id goes in `metadata`, which Pixelforge
+echoes in every webhook.
+
+**What is retried and what fails.** 429 and 5xx are waited out (capped at 60
+seconds a wait, for up to 15 minutes in all). Network errors retry with
+backoff. Everything else fails at once and costs nothing: a rejected prompt,
+an invalid key, and the daily quota, which won't clear for hours.
+
+**Status only moves forward** (`GenerationStatus::canMoveTo`). Each change
+re-reads the row under a lock, so the job and a webhook landing at the same
+moment can't overwrite each other, and a late "processing" can't undo
+"succeeded". The job only moves the status to queued or processing; succeeded
+and failed carry results, so the webhook sets those.
+
+**Known trade-off.** If Pixelforge stays unreachable for 15 minutes the job
+gives up and marks the generation failed (free). If Pixelforge had in fact
+accepted it, a later "succeeded" webhook can't revive it, so we would absorb
+that cost rather than charge for an image we told the user had failed.
