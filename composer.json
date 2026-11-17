@@ -1,11 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/vue-starter-kit",
+    "name": "lucklegend/promptframe",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Generate images through the Pixelforge API and charge users exactly for what they make.",
     "keywords": [
         "laravel",
-        "framework"
+        "inertia",
+        "vue",
+        "image-generation"
     ],
     "license": "MIT",
     "require": {
